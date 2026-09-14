@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  code, kbd, samp, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Oculta tudo exceto o modal de relatório quando estiver imprimindo */
+  header,
+  #canvas-toolbar,
+  #sheet-config-card,
+  #piece-manager-card,
+  #metrics-overview,
+  .no-print {
+    display: none !important;
+  }
+
+  #printable-report-modal {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  #print-sheet-content {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}

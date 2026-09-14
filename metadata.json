@@ -1,0 +1,6 @@
+{
+  "name": "Plano de Corte - Vidraçaria",
+  "description": "Sistema intuitivo para cálculo de área e otimização de plano de corte de chapas de vidro e espelho com visualização gráfica colorida e redução de desperdício.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
