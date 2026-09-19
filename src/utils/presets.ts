@@ -16,6 +16,8 @@ export const STANDARD_SHEET_SIZES = [
   { name: 'Chapa 321 × 240 cm', width: 321, height: 240, unit: 'cm' as const },
 ];
 
+//export const PRESET_PROJECTS: PresetProject[] = [];
+
 export const PRESET_PROJECTS: PresetProject[] = [
   {
     id: 'espelhos-residenciais',
@@ -31,16 +33,16 @@ export const PRESET_PROJECTS: PresetProject[] = [
       allowMultiSheet: true,
     },
     pieces: [
-      {
-        id: 'p1',
-        label: 'Espelho Suíte Casal',
-        width: 1400,
-        height: 900,
-        quantity: 1,
-        allowRotation: true,
-        color: PIECE_PALETTE[0].value, // Sky blue
-      },
-      {
+      //{
+        //id: 'p1',
+        //label: 'Espelho Suíte Casal',
+        //width: 1400,
+        //height: 900,
+        //quantity: 1,
+        //allowRotation: true,
+        //color: PIECE_PALETTE[0].value, // Sky blue
+      //},
+      /*{
         id: 'p2',
         label: 'Espelho Banheiro Social',
         width: 1000,
@@ -75,7 +77,7 @@ export const PRESET_PROJECTS: PresetProject[] = [
         quantity: 4,
         allowRotation: true,
         color: PIECE_PALETTE[4].value, // Pink
-      },
+      },*/
     ],
   },
   {
