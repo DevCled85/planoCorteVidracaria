@@ -106,59 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Menu de Exemplos Prontos */}
-          <div className="relative">
-            <button
-              id="btn-presets"
-              type="button"
-              onClick={() => setShowPresetsMenu(!showPresetsMenu)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1.5 transition-colors shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Exemplos Prontos</span>
-            </button>
-
-            {showPresetsMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowPresetsMenu(false)}
-                />
-                <div className="absolute right-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-2 z-50 text-xs">
-                  <div className="px-2 py-1.5 text-slate-400 font-semibold border-b border-slate-700/60 flex items-center justify-between">
-                    <span>Carregar Modelo de Corte</span>
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-slate-400" />
-                  </div>
-                  <div className="mt-1 space-y-1">
-                    {PRESET_PROJECTS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => {
-                          onLoadPreset(preset);
-                          setShowPresetsMenu(false);
-                        }}
-                        className="w-full text-left p-2 rounded-lg hover:bg-slate-700 transition text-slate-200 group"
-                      >
-                        <div className="font-semibold text-cyan-300 group-hover:text-cyan-200">
-                          {preset.name}
-                        </div>
-                        <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
-                          {preset.description}
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-2">
-                          <span>
-                            Chapa: {preset.sheetConfig.width} × {preset.sheetConfig.height} mm
-                          </span>
-                          <span>•</span>
-                          <span>{preset.pieces.length} itens</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          
 
           {/* Instalação PWA (Celular e Desktop) */}
           <PWAInstallButton />
