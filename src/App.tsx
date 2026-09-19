@@ -10,6 +10,8 @@ import { CutPlanCanvas } from './components/CutPlanCanvas';
 import { SheetConfigCard } from './components/SheetConfigCard';
 import { PieceManager } from './components/PieceManager';
 import { PrintableReport } from './components/PrintableReport';
+import { Footer } from './components/Footer';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   // Inicializa com o preset elegante de espelhos residenciais
@@ -221,6 +223,12 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Indicador de Status Offline */}
+      <OfflineIndicator />
+
+      {/* Rodapé com Direitos Reservados e Versão */}
+      <Footer />
 
       {/* Modal de Impressão e Ordem de Oficina */}
       <PrintableReport

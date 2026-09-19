@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { DimensionUnit, SheetConfig } from '../types';
 import { PRESET_PROJECTS, PresetProject } from '../utils/presets';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   sheetConfig: SheetConfig;
@@ -158,6 +159,9 @@ export const Header: React.FC<HeaderProps> = ({
               </>
             )}
           </div>
+
+          {/* Instalação PWA (Celular e Desktop) */}
+          <PWAInstallButton />
 
           {/* Botão de Impressão / Relatório da Oficina */}
           <button
