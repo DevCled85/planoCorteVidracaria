@@ -10,25 +10,24 @@ export interface PresetProject {
 }
 
 export const STANDARD_SHEET_SIZES = [
-  { name: 'Padrão Brasil (2200 × 3210 mm)', width: 3210, height: 2200, unit: 'mm' as const },
-  { name: 'Jumbo Compacto (2000 × 2400 mm)', width: 2400, height: 2000, unit: 'mm' as const },
-  { name: 'Meia Chapa (1800 × 2200 mm)', width: 2200, height: 1800, unit: 'mm' as const },
-  { name: 'Chapa Balcão (1500 × 2000 mm)', width: 2000, height: 1500, unit: 'mm' as const },
-  { name: 'Chapa em Centímetros (321 × 220 cm)', width: 321, height: 220, unit: 'cm' as const },
+  { name: 'Chapa 1605 × 2400 mm', width: 1605, height: 2400, unit: 'mm' as const },
+  { name: 'Chapa 3210 × 2400 mm', width: 3210, height: 2400, unit: 'mm' as const },
+  { name: 'Chapa 160.5 × 240 cm', width: 160.5, height: 240, unit: 'cm' as const },
+  { name: 'Chapa 321 × 240 cm', width: 321, height: 240, unit: 'cm' as const },
 ];
 
 export const PRESET_PROJECTS: PresetProject[] = [
   {
     id: 'espelhos-residenciais',
     name: 'Kit de Espelhos Residenciais',
-    description: 'Espelhos para suíte, lavabo social, camarim e prateleiras decorativas em chapa 3210 × 2200 mm.',
+    description: 'Espelhos para suíte, lavabo social, camarim e prateleiras decorativas em chapa 3210 × 2400 mm.',
     sheetConfig: {
       width: 3210,
-      height: 2200,
-      margin: 10,
-      kerf: 2,
+      height: 2400,
+      margin: 0,
+      kerf: 0,
       unit: 'mm',
-      materialName: 'Espelho Prata 4mm Lapidado',
+      materialName: 'Espelho Chapa',
       allowMultiSheet: true,
     },
     pieces: [

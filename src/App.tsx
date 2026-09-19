@@ -37,6 +37,35 @@ export default function App() {
     setSheetConfig((prev) => ({ ...prev, ...updated }));
   }, []);
 
+  // Alternar unidade global (mm <-> cm) convertendo todas as medidas da chapa e de todas as peças
+  const handleToggleUnit = useCallback((newUnit: 'mm' | 'cm') => {
+    setSheetConfig((prevConfig) => {
+      if (prevConfig.unit === newUnit) return prevConfig;
+
+      const factor = newUnit === 'cm' ? 0.1 : 10;
+      // Arredonda com precisão para evitar dízimas periódicas de ponto flutuante
+      const convertVal = (val: number) => Math.round(val * factor * 100) / 100;
+
+      // Converte todas as peças cadastradas na lista
+      setPieces((prevPieces) =>
+        prevPieces.map((piece) => ({
+          ...piece,
+          width: convertVal(piece.width),
+          height: convertVal(piece.height),
+        }))
+      );
+
+      return {
+        ...prevConfig,
+        unit: newUnit,
+        width: convertVal(prevConfig.width),
+        height: convertVal(prevConfig.height),
+        margin: convertVal(prevConfig.margin),
+        kerf: convertVal(prevConfig.kerf),
+      };
+    });
+  }, []);
+
   // Handlers para peças
   const handleAddPiece = useCallback((newPiece: CutPieceInput) => {
     setPieces((prev) => [...prev, newPiece]);
@@ -105,6 +134,7 @@ export default function App() {
       <Header
         sheetConfig={sheetConfig}
         onUpdateConfig={handleUpdateConfig}
+        onToggleUnit={handleToggleUnit}
         onLoadPreset={handleLoadPreset}
         onResetAll={handleResetAll}
         onPrint={() => setIsPrintModalOpen(true)}
@@ -185,6 +215,8 @@ export default function App() {
               selectedPieceId={selectedPieceId}
               onSelectPiece={setSelectedPieceId}
               onRotatePiece={handleRotatePiece}
+              pieces={pieces}
+              onUpdatePiece={handleUpdatePiece}
             />
           </div>
         </div>

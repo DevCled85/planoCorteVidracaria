@@ -13,6 +13,7 @@ import { PRESET_PROJECTS, PresetProject } from '../utils/presets';
 interface HeaderProps {
   sheetConfig: SheetConfig;
   onUpdateConfig: (config: Partial<SheetConfig>) => void;
+  onToggleUnit?: (unit: DimensionUnit) => void;
   onLoadPreset: (preset: PresetProject) => void;
   onResetAll: () => void;
   onPrint: () => void;
@@ -22,6 +23,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   sheetConfig,
   onUpdateConfig,
+  onToggleUnit,
   onLoadPreset,
   onResetAll,
   onPrint,
@@ -31,14 +33,18 @@ export const Header: React.FC<HeaderProps> = ({
 
   const toggleUnit = (unit: DimensionUnit) => {
     if (unit === sheetConfig.unit) return;
-    // Conversão de valores ao trocar unidade
+    if (onToggleUnit) {
+      onToggleUnit(unit);
+      return;
+    }
+    // Fallback de conversão de valores ao trocar unidade
     const factor = unit === 'cm' ? 0.1 : 10;
     onUpdateConfig({
       unit,
-      width: Math.round(sheetConfig.width * factor * 10) / 10,
-      height: Math.round(sheetConfig.height * factor * 10) / 10,
-      margin: Math.round(sheetConfig.margin * factor * 10) / 10,
-      kerf: Math.round(sheetConfig.kerf * factor * 10) / 10,
+      width: Math.round(sheetConfig.width * factor * 100) / 100,
+      height: Math.round(sheetConfig.height * factor * 100) / 100,
+      margin: Math.round(sheetConfig.margin * factor * 100) / 100,
+      kerf: Math.round(sheetConfig.kerf * factor * 100) / 100,
     });
   };
 

@@ -317,7 +317,7 @@ export function optimizeCutPlan(
     return createEmptyResult(sheetConfig);
   }
 
-  // Estratégias de ordenação para testar
+  // Estratégias de ordenação para testar (todas as variações de dimensões e proporções)
   const sortingStrategies: { name: string; sortFn: (a: ItemToPack, b: ItemToPack) => number }[] = [
     {
       name: 'AreaDesc',
@@ -326,6 +326,10 @@ export function optimizeCutPlan(
     {
       name: 'MaxDimensionDesc',
       sortFn: (a, b) => Math.max(b.width, b.height) - Math.max(a.width, a.height),
+    },
+    {
+      name: 'MinDimensionDesc',
+      sortFn: (a, b) => Math.min(b.width, b.height) - Math.min(a.width, a.height),
     },
     {
       name: 'PerimeterDesc',
@@ -339,6 +343,12 @@ export function optimizeCutPlan(
       name: 'HeightDesc',
       sortFn: (a, b) => b.height - a.height || b.width - a.width,
     },
+    {
+      name: 'SideRatioDesc',
+      sortFn: (a, b) =>
+        Math.max(b.width, b.height) / Math.min(b.width, b.height) -
+        Math.max(a.width, a.height) / Math.min(a.width, a.height),
+    },
   ];
 
   const splitRules: SplitRule[] = [
@@ -348,10 +358,10 @@ export function optimizeCutPlan(
     'SplitVertical',
   ];
 
-  const heuristics: Heuristic[] = ['BSSF', 'BAF'];
+  const heuristics: Heuristic[] = ['BSSF', 'BLSF', 'BAF'];
 
   let bestResult: OptimizationResult | null = null;
-  let bestScore = -1;
+  let bestScore = -Infinity;
 
   // Testamos as combinações para encontrar o melhor empacotamento
   for (const sortStrat of sortingStrategies) {
@@ -365,17 +375,34 @@ export function optimizeCutPlan(
           heuristic
         );
 
-        // Score: prioriza colocar mais peças, menos chapas, e maior % de aproveitamento
+        // Score avançado:
+        // 1. Penalidade massiva se deixar peças não alocadas
         const unplacedPenalty = result.unplacedPieces.reduce(
-          (acc, u) => acc + u.unplacedCount * 10000,
+          (acc, u) => acc + u.unplacedCount * 50000,
           0
         );
-        const sheetPenalty = result.sheets.length * 500;
+        // 2. Penalidade por chapa adicional (minimizar quantidade de chapas consumidas)
+        const sheetPenalty = result.sheets.length * 1000;
+
+        // 3. Bônus por aproveitamento e por concentrar sobras em retalhos grandes e úteis
+        const usableWasteBonus = result.sheets.reduce(
+          (acc, s) => acc + s.usableWasteAreaM2 * 50,
+          0
+        );
+
+        // 4. Penalidade por fragmentação de sobras (poucos retalhos grandes é melhor que muitos pequenos)
+        const wasteFragmentationPenalty = result.sheets.reduce(
+          (acc, s) => acc + s.wasteAreas.length * 5,
+          0
+        );
+
         const score =
-          result.totalPlacedPieces * 1000 +
-          result.overallUtilizationPercent * 10 -
+          result.totalPlacedPieces * 5000 +
+          result.overallUtilizationPercent * 50 +
+          usableWasteBonus -
           unplacedPenalty -
-          sheetPenalty;
+          sheetPenalty -
+          wasteFragmentationPenalty;
 
         if (bestResult === null || score > bestScore) {
           bestScore = score;

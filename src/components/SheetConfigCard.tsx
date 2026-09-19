@@ -1,7 +1,16 @@
-import React from 'react';
-import { Settings2, Layers, Check, RefreshCw } from 'lucide-react';
-import { SheetConfig } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Settings2, Layers, Check, RefreshCw, BookmarkPlus, X } from 'lucide-react';
+import { SheetConfig, DimensionUnit } from '../types';
 import { STANDARD_SHEET_SIZES } from '../utils/presets';
+
+interface CustomSheetSize {
+  name: string;
+  width: number;
+  height: number;
+  unit: DimensionUnit;
+}
+
+const LOCAL_STORAGE_CUSTOM_SIZES = 'plano_corte_custom_sheet_sizes';
 
 interface SheetConfigCardProps {
   config: SheetConfig;
@@ -12,6 +21,62 @@ export const SheetConfigCard: React.FC<SheetConfigCardProps> = ({
   config,
   onChange,
 }) => {
+  // Carrega tamanhos personalizados salvos pelo usuário no navegador
+  const [customSizes, setCustomSizes] = useState<CustomSheetSize[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_CUSTOM_SIZES);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
+
+  // Salvar tamanhos customizados no localStorage sempre que mudar
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_CUSTOM_SIZES, JSON.stringify(customSizes));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [customSizes]);
+
+  // Lista combinada de tamanhos de fábrica + tamanhos salvos pelo vidraceiro
+  const allSizes: CustomSheetSize[] = [
+    ...STANDARD_SHEET_SIZES,
+    ...customSizes,
+  ];
+
+  // Filtra pelos tamanhos da unidade atual (mm ou cm)
+  const availableSizes = allSizes.filter((s) => s.unit === config.unit);
+
+  // Verifica se a dimensão atual já existe na lista de padrões
+  const isCurrentSizeSaved = availableSizes.some(
+    (s) => s.width === config.width && s.height === config.height
+  );
+
+  // Função para salvar o tamanho atual como novo padrão de vidraçaria
+  const handleSaveCurrentAsStandard = () => {
+    if (isCurrentSizeSaved || config.width <= 0 || config.height <= 0) return;
+
+    const newEntry: CustomSheetSize = {
+      name: `Chapa ${config.width} × ${config.height} ${config.unit}`,
+      width: config.width,
+      height: config.height,
+      unit: config.unit,
+    };
+
+    setCustomSizes((prev) => [...prev, newEntry]);
+  };
+
+  // Remover um tamanho customizado
+  const handleRemoveCustomSize = (width: number, height: number, unit: DimensionUnit) => {
+    setCustomSizes((prev) =>
+      prev.filter((s) => !(s.width === width && s.height === height && s.unit === unit))
+    );
+  };
   return (
     <div
       id="sheet-config-card"
@@ -79,31 +144,69 @@ export const SheetConfigCard: React.FC<SheetConfigCardProps> = ({
         </div>
       </div>
 
-      {/* Atalhos Rápidos de Tamanhos de Fábrica */}
+      {/* Atalhos Rápidos de Tamanhos de Vidraçaria */}
       <div>
-        <div className="text-[11px] font-medium text-slate-400 mb-1.5">
-          Tamanhos padrão de vidraçaria:
+        <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-1.5">
+          <span>Tamanhos padrão de vidraçaria:</span>
+          {!isCurrentSizeSaved && config.width > 0 && config.height > 0 && (
+            <button
+              type="button"
+              onClick={handleSaveCurrentAsStandard}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 px-2 py-0.5 rounded-md border border-cyan-500/30 transition cursor-pointer"
+              title="Salvar tamanho atual como padrão de vidraçaria permanente"
+            >
+              <BookmarkPlus className="w-3 h-3" />
+              <span>Salvar {config.width}×{config.height} como padrão</span>
+            </button>
+          )}
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {STANDARD_SHEET_SIZES.filter((s) => s.unit === config.unit).map((std) => (
-            <button
-              key={std.name}
-              type="button"
-              onClick={() =>
-                onChange({
-                  width: std.width,
-                  height: std.height,
-                })
-              }
-              className={`text-[11px] px-2.5 py-1 rounded-lg border transition font-medium ${
-                config.width === std.width && config.height === std.height
-                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-semibold'
-                  : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-700/80'
-              }`}
-            >
-              {std.width} × {std.height}
-            </button>
-          ))}
+          {availableSizes.map((std) => {
+            const isSelected = config.width === std.width && config.height === std.height;
+            const isCustom = customSizes.some(
+              (c) => c.width === std.width && c.height === std.height && c.unit === std.unit
+            );
+
+            return (
+              <div key={`${std.width}-${std.height}-${std.unit}`} className="relative group">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      width: std.width,
+                      height: std.height,
+                    })
+                  }
+                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition font-medium flex items-center gap-1 cursor-pointer ${
+                    isSelected
+                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-semibold shadow-sm'
+                      : 'bg-slate-800/80 border-slate-700/80 text-slate-300 hover:bg-slate-700/80'
+                  }`}
+                  title={std.name}
+                >
+                  <span>{std.width} × {std.height}</span>
+                  {isCustom && (
+                    <span className="text-[9px] text-amber-400 font-mono" title="Tamanho salvo por você">★</span>
+                  )}
+                </button>
+
+                {/* Excluir tamanho customizado se foi criado pelo usuário */}
+                {isCustom && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveCustomSize(std.width, std.height, std.unit);
+                    }}
+                    className="absolute -top-1 -right-1 hidden group-hover:flex w-3.5 h-3.5 rounded-full bg-rose-600 text-white items-center justify-center text-[8px] shadow cursor-pointer"
+                    title="Remover este tamanho padrão"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -15,8 +15,11 @@ import {
   Eye,
   Check,
   Download,
+  Pencil,
+  X,
 } from 'lucide-react';
 import {
+  CutPieceInput,
   OptimizationResult,
   PlacedPiece,
   SheetConfig,
@@ -32,6 +35,8 @@ interface CutPlanCanvasProps {
   selectedPieceId: string | null;
   onSelectPiece: (pieceId: string | null) => void;
   onRotatePiece?: (pieceId: string) => void;
+  pieces?: CutPieceInput[];
+  onUpdatePiece?: (id: string, updated: Partial<CutPieceInput>) => void;
 }
 
 export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
@@ -42,6 +47,8 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
   selectedPieceId,
   onSelectPiece,
   onRotatePiece,
+  pieces,
+  onUpdatePiece,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -50,6 +57,7 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hasDragged, setHasDragged] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Filtros visuais
@@ -57,6 +65,12 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
   const [showWasteInfo, setShowWasteInfo] = useState(true);
   const [showDimensions, setShowDimensions] = useState(true);
   const [hoveredPiece, setHoveredPiece] = useState<PlacedPiece | null>(null);
+
+  // Edição rápida de dimensões direto no canvas inspector
+  const [isEditingInspector, setIsEditingInspector] = useState(false);
+  const [inspectorWidth, setInspectorWidth] = useState('');
+  const [inspectorHeight, setInspectorHeight] = useState('');
+  const [inspectorLabel, setInspectorLabel] = useState('');
 
   const currentSheet =
     optimization.sheets[activeSheetIndex] || optimization.sheets[0];
@@ -97,11 +111,17 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // apenas botão esquerdo
     setIsDragging(true);
+    setHasDragged(false);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
+    const deltaX = Math.abs(e.clientX - dragStart.x - pan.x);
+    const deltaY = Math.abs(e.clientY - dragStart.y - pan.y);
+    if (deltaX > 4 || deltaY > 4) {
+      setHasDragged(true);
+    }
     setPan({
       x: e.clientX - dragStart.x,
       y: e.clientY - dragStart.y,
@@ -110,6 +130,20 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  // Clicar fora de qualquer peça desfaz a seleção e esconde o popup de informações
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Se o usuário estava apenas arrastando a chapa, não cancela a seleção
+    if (hasDragged) return;
+
+    // Se o clique foi no próprio card do inspetor ou dentro de seus controles, não fecha
+    const target = e.target as HTMLElement;
+    if (target.closest('#piece-inspector-card')) return;
+
+    onSelectPiece(null);
+    setHoveredPiece(null);
+    setIsEditingInspector(false);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -338,6 +372,7 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onClick={handleCanvasClick}
       >
         {/* Padrão de mesa de corte de vidraçaria (grid sutil milimetrado no fundo) */}
         <div
@@ -903,20 +938,42 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
           </div>
         )}
 
-        {/* Painel Flutuante de Inspeção da Peça Selecionada/Hover */}
-        {(hoveredPiece || selectedPieceId) && (
+        {/* Painel Flutuante de Inspeção da Peça Selecionada (Aparece somente ao CLICAR em um corte) */}
+        {selectedPieceId && (
           <div
             id="piece-inspector-card"
+            onClick={(e) => e.stopPropagation()}
             className="absolute bottom-4 left-4 z-20 p-3 rounded-xl bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-md text-xs text-slate-200 max-w-xs animate-in fade-in slide-in-from-bottom-2 duration-150"
           >
             {(() => {
-              const active =
-                hoveredPiece ||
-                currentSheet?.placedPieces.find((p) => p.pieceId === selectedPieceId);
+              const active = currentSheet?.placedPieces.find((p) => p.pieceId === selectedPieceId);
 
               if (!active) return null;
 
               const areaM2 = (active.width * active.height) / (sheetConfig.unit === 'cm' ? 10_000 : 1_000_000);
+
+              const sourcePiece = pieces?.find((p) => p.id === active.pieceId);
+
+              const handleStartInspectorEdit = () => {
+                setIsEditingInspector(true);
+                setInspectorLabel(sourcePiece?.label || active.label);
+                setInspectorWidth((sourcePiece?.width ?? active.originalWidth).toString());
+                setInspectorHeight((sourcePiece?.height ?? active.originalHeight).toString());
+              };
+
+              const handleSaveInspectorEdit = () => {
+                if (!onUpdatePiece) return;
+                const w = parseFloat(inspectorWidth);
+                const h = parseFloat(inspectorHeight);
+                if (isNaN(w) || w <= 0 || isNaN(h) || h <= 0) return;
+
+                onUpdatePiece(active.pieceId, {
+                  label: inspectorLabel.trim() || undefined,
+                  width: w,
+                  height: h,
+                });
+                setIsEditingInspector(false);
+              };
 
               return (
                 <div>
@@ -926,62 +983,151 @@ export const CutPlanCanvas: React.FC<CutPlanCanvasProps> = ({
                         className="w-3.5 h-3.5 rounded-full ring-2 ring-white/30"
                         style={{ backgroundColor: active.color }}
                       />
-                      <span className="font-bold text-white text-sm truncate max-w-[150px]">
+                      <span className="font-bold text-white text-sm truncate max-w-[140px]">
                         #{active.itemIndex} {active.label}
                       </span>
                     </div>
-                    {active.rotated ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">
-                        Girada 90°
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
-                        Original
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Corte (L × A):</span>
-                      <strong className="font-mono text-cyan-300">
-                        {active.width} × {active.height} {sheetConfig.unit}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Área Unitária:</span>
-                      <strong className="font-mono text-emerald-400">
-                        {formatArea(areaM2)}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Posição (X, Y):</span>
-                      <span className="font-mono text-slate-300">
-                        X: {Math.round(active.x)} | Y: {Math.round(active.y)}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Original:</span>
-                      <span className="font-mono text-slate-300">
-                        {active.originalWidth} × {active.originalHeight} {sheetConfig.unit}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      {active.rotated ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">
+                          Girada 90°
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-medium">
+                          Original
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectPiece(null);
+                          setIsEditingInspector(false);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                        title="Fechar painel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Botão de Ação Direta para Girar a Peça */}
-                  {onRotatePiece && (
-                    <button
-                      type="button"
-                      onClick={() => onRotatePiece(active.pieceId)}
-                      className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow cursor-pointer"
-                      title="Inverter largura e altura deste corte (90°)"
-                    >
-                      <RotateCw className="w-3.5 h-3.5" />
-                      <span>Girar Corte (90°)</span>
-                    </button>
+                  {isEditingInspector ? (
+                    <div className="space-y-2 py-1">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Descrição</label>
+                        <input
+                          type="text"
+                          value={inspectorLabel}
+                          onChange={(e) => setInspectorLabel(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">
+                            Largura ({sheetConfig.unit})
+                          </label>
+                          <input
+                            type="number"
+                            value={inspectorWidth}
+                            onChange={(e) => setInspectorWidth(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                            min="1"
+                            step="any"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">
+                            Altura ({sheetConfig.unit})
+                          </label>
+                          <input
+                            type="number"
+                            value={inspectorHeight}
+                            onChange={(e) => setInspectorHeight(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                            min="1"
+                            step="any"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleSaveInspectorEdit}
+                          className="flex-1 py-1 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1 transition shadow cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Salvar Dimensões</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingInspector(false)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                          title="Cancelar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Corte no Plano (L × A):</span>
+                          <strong className="font-mono text-cyan-300">
+                            {active.width} × {active.height} {sheetConfig.unit}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Área Unitária:</span>
+                          <strong className="font-mono text-emerald-400">
+                            {formatArea(areaM2)}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Posição (X, Y):</span>
+                          <span className="font-mono text-slate-300">
+                            X: {Math.round(active.x)} | Y: {Math.round(active.y)}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Dimensão Cadastro:</span>
+                          <span className="font-mono text-slate-300">
+                            {active.originalWidth} × {active.originalHeight} {sheetConfig.unit}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Botões de Ação Direta: Editar e Girar Peça */}
+                      <div className="mt-2.5 flex items-center gap-1.5">
+                        {onUpdatePiece && (
+                          <button
+                            type="button"
+                            onClick={handleStartInspectorEdit}
+                            className="flex-1 py-1.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-cyan-500/30 transition shadow cursor-pointer"
+                            title="Editar dimensões desta peça"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </button>
+                        )}
+                        {onRotatePiece && (
+                          <button
+                            type="button"
+                            onClick={() => onRotatePiece(active.pieceId)}
+                            className="flex-1 py-1.5 px-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow cursor-pointer"
+                            title="Inverter largura e altura deste corte (90°)"
+                          >
+                            <RotateCw className="w-3.5 h-3.5" />
+                            <span>Girar (90°)</span>
+                          </button>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               );
